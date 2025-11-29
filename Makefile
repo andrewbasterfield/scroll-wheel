@@ -1,49 +1,43 @@
-# MCU and CPU frequency
-MCU=atmega32u4
-F_CPU=16000000UL
-TARGET=main
+# Project Information
+TARGET       = build/scroll-wheel
+MCU          = atmega32u4
+F_CPU        = 16000000
+F_USB        = $(F_CPU)
+ARCH         = AVR8
+BOARD        = NONE
+OPTIMIZATION = s
+OBJDIR       = build
 
-# Build directories
-BUILD_DIR=build
-OBJ_DIR=$(BUILD_DIR)/obj
+# Compiler flags
+CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 
-# Find all .c files in the current directory
-SRCS=$(wildcard *.c)
-# Create a list of object files in the OBJ_DIR
-OBJS=$(patsubst %.c,$(OBJ_DIR)/%.o,$(SRCS))
+# Create the build directory if it doesn't exist
+$(shell mkdir -p $(dir $(TARGET)))
 
-# Compiler and linker settings
-CC=avr-gcc
-OBJCOPY=avr-objcopy
-CFLAGS=-mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -std=gnu11 -ffunction-sections -fdata-sections -Wall -Wextra
-LDFLAGS=-mmcu=$(MCU) -Wl,--gc-sections
+# LUFA Path
+LUFA_PATH    = ./lufa/LUFA
 
-# Target files
-ELF_FILE=$(BUILD_DIR)/$(TARGET).elf
-HEX_FILE=$(BUILD_DIR)/$(TARGET).hex
+# Include LUFA sources makefile
+include $(LUFA_PATH)/Build/LUFA/lufa-sources.mk
 
-.PHONY: all clean flash
+# Source files
+SRC          = main.c Descriptors.c $(LUFA_SRC_USB) $(filter %HIDClassDevice.c, $(LUFA_SRC_USBCLASS_DEVICE))
 
-all: $(HEX_FILE)
+# Default target
+all:
 
-# Link object files to create ELF file
-$(ELF_FILE): $(OBJS)
-	@mkdir -p $(@D)
-	$(CC) $(LDFLAGS) $(OBJS) -o $@
+# Include common DMBS build system modules
+DMBS_PATH      ?= $(LUFA_PATH)/Build/DMBS/DMBS
+include $(DMBS_PATH)/core.mk
+include $(DMBS_PATH)/gcc.mk
+include $(DMBS_PATH)/avrdude.mk
 
-# Create HEX file from ELF file
-$(HEX_FILE): $(ELF_FILE)
-	$(OBJCOPY) -O ihex $< $@
+# Include LUFA GCC modules
+include $(LUFA_PATH)/Build/LUFA/lufa-gcc.mk
 
-# Compile .c files into .o object files
-$(OBJ_DIR)/%.o: %.c
-	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-clean:
-	rm -rf $(BUILD_DIR)
-
+#
+# Our custom flash target from the original Makefile.
+#
+.PHONY: flash
 flash: all
-	stty -F /dev/ttyACM0 1200
-	sleep 2
-	avrdude -p m32u4 -c avr109 -P /dev/ttyACM0 -b 57600 -U flash:w:$(HEX_FILE):i
+	avrdude -p m32u4 -c avr109 -P $$(ls -1t /dev/ttyACM* | head -n 1) -b 57600 -U flash:w:$(TARGET).hex:i
