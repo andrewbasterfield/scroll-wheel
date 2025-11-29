@@ -8,6 +8,18 @@
 #include "Descriptors.h"
 
 /**
+ * \brief Defines the scaling factor for high-resolution scrolling.
+ *
+ * This value is used in the HID Report Descriptor to define the resolution
+ * of the scroll wheel. A higher value results in slower, finer scrolling.
+ * The value is used in a formula by the host OS:
+ * (Scroll Value) = (Reported Value) * 120 / SCROLL_RESOLUTION_MULTIPLIER
+ *
+ * So, a value of 4 here means each encoder tick is 1/4th of a standard scroll detent.
+ */
+#define SCROLL_RESOLUTION_MULTIPLIER 8
+
+/**
  * \brief HID class report descriptor.
  *
  * This is a special descriptor constructed with values from the
@@ -20,20 +32,34 @@
  */
 const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
 {
-    HID_RI_USAGE_PAGE(8, 0x01),        // Generic Desktop
-    HID_RI_USAGE(8, 0x02),             // Mouse
-    HID_RI_COLLECTION(8, 0x01),        // Application
-        HID_RI_USAGE(8, 0x01),         //  Pointer
-        HID_RI_COLLECTION(8, 0x00),    //  Physical
-            HID_RI_USAGE_PAGE(8, 0x01),    //   Generic Desktop
-            HID_RI_USAGE(8, 0x38),         //   Wheel
-            HID_RI_LOGICAL_MINIMUM(8, -127),
-            HID_RI_LOGICAL_MAXIMUM(8, 127),
-            HID_RI_REPORT_SIZE(8, 8),
-            HID_RI_REPORT_COUNT(8, 1),
-            HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
-        HID_RI_END_COLLECTION(0),
-    HID_RI_END_COLLECTION(0)
+	HID_RI_USAGE_PAGE(8, 0x01),        /* Generic Desktop */
+	HID_RI_USAGE(8, 0x02),             /* Mouse */
+	HID_RI_COLLECTION(8, 0x01),        /* Application */
+		HID_RI_COLLECTION(8, 0x02),    /* Logical Collection */
+			/* Feature Report (ID 2) - Resolution Multiplier */
+			HID_RI_REPORT_ID(8, 2),
+			HID_RI_USAGE_PAGE(8, 0x01),      /* Generic Desktop */
+			HID_RI_USAGE(8, 0x48),           /* Usage: Resolution Multiplier */
+			/* Logical/Physical range for Windows & firmware compatibility */
+			HID_RI_LOGICAL_MINIMUM(8, 0),
+			HID_RI_LOGICAL_MAXIMUM(8, 1),
+			HID_RI_PHYSICAL_MINIMUM(8, 1),
+			HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER),
+			HID_RI_REPORT_COUNT(8, 1),
+			HID_RI_REPORT_SIZE(8, 8),
+			HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+
+			/* Input Report (ID 1) - Vertical Wheel */
+			HID_RI_REPORT_ID(8, 1),
+			HID_RI_USAGE_PAGE(8, 0x01),      /* Generic Desktop */
+			HID_RI_USAGE(8, 0x38),           /*   Wheel */
+			HID_RI_LOGICAL_MINIMUM(8, -127),
+			HID_RI_LOGICAL_MAXIMUM(8, 127),
+			HID_RI_REPORT_SIZE(8, 8),
+			HID_RI_REPORT_COUNT(8, 1),
+			HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
+		HID_RI_END_COLLECTION(0),
+	HID_RI_END_COLLECTION(0)
 };
 
 /**

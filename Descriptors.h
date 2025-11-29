@@ -36,7 +36,7 @@
 		 *
 		 * This is set to the size of our custom scroll report.
 		 */
-		#define MOUSE_EPSIZE              sizeof(USB_ScrollReport_Data_t)
+		#define MOUSE_EPSIZE              8
 
 		/**
 		 * \brief Type define for the device configuration descriptor structure.

@@ -17,12 +17,18 @@
 // --- Global variables ---
 
 /**
- * \brief Volatile variable to store the accumulated change in the encoder's position.
+ * \brief Volatile variable to accumulate encoder steps.
  *
- * This variable is modified by the ISRs and read in the main context, so it is
- * declared as volatile. Access to it is protected by an atomic block.
+ * This variable is incremented or decremented by the ISR for each step of
+ * the rotary encoder. It is then read and processed in the main context.
  */
 static volatile int8_t encoder_delta = 0;
+
+/**
+ * \brief Stores the current resolution multiplier value set by the host.
+ */
+static uint8_t ResolutionMultiplier = 1;
+
 
 /**
  * \brief Buffer to hold the previously generated HID report, for comparison purposes inside the HID class driver.
@@ -165,9 +171,6 @@ ISR(INT1_vect)
 
 /**
  * \brief Event handler for the library USB Connection event.
- *
- * This is a LUFA event that is fired when the device is connected to a USB host.
- * We can add custom code here if needed.
  */
 void EVENT_USB_Device_Connect(void)
 {
@@ -176,8 +179,6 @@ void EVENT_USB_Device_Connect(void)
 
 /**
  * \brief Event handler for the library USB Disconnection event.
- *
- * This is a LUFA event that is fired when the device is disconnected from a USB host.
  */
 void EVENT_USB_Device_Disconnect(void)
 {
@@ -186,9 +187,6 @@ void EVENT_USB_Device_Disconnect(void)
 
 /**
  * \brief Event handler for the library USB Configuration Changed event.
- *
- * This is a LUFA event that is fired when the USB host has configured the device.
- * We must configure the HID endpoints here.
  */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
@@ -199,9 +197,6 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 
 /**
  * \brief Event handler for the library USB Control Request reception event.
- *
- * This is a LUFA event that is fired when the host sends a control request to the device.
- * We need to process it through the HID class driver.
  */
 void EVENT_USB_Device_ControlRequest(void)
 {
@@ -210,8 +205,6 @@ void EVENT_USB_Device_ControlRequest(void)
 
 /**
  * \brief Event handler for the USB device Start Of Frame event.
- *
- * This event is not used in this application, but is required by the HID class driver.
  */
 void EVENT_USB_Device_StartOfFrame(void)
 {
@@ -220,9 +213,6 @@ void EVENT_USB_Device_StartOfFrame(void)
 
 /**
  * \brief HID class driver callback function for the creation of HID reports to the host.
- *
- * This function is called by the LUFA HID class driver when it needs to send a
- * report to the host. We fill the report with the current scroll wheel delta.
  */
 bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
                                          uint8_t* const ReportID,
@@ -230,33 +220,36 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
                                          void* ReportData,
                                          uint16_t* const ReportSize)
 {
-	USB_ScrollReport_Data_t* MouseReport = (USB_ScrollReport_Data_t*)ReportData;
+	// Check if the host is requesting a FEATURE report
+	if (ReportType == HID_REPORT_ITEM_Feature)
+	{
+		// Report ID 2 is for the Resolution Multiplier
+		if (*ReportID == 2)
+		{
+			uint8_t* FeatureReport = (uint8_t*)ReportData;
+			*FeatureReport = ResolutionMultiplier;
+			*ReportSize = sizeof(ResolutionMultiplier);
+			return true;
+		}
+	}
 
-	// Clear the report buffer to ensure we start with a clean state.
+	// Otherwise, create an INPUT report for the scroll wheel
+	*ReportID = 1;
+	USB_ScrollReport_Data_t* MouseReport = (USB_ScrollReport_Data_t*)ReportData;
 	*MouseReport = (USB_ScrollReport_Data_t){};
 
-	// We use an atomic block to safely read and reset the encoder_delta
-	// variable, which is modified by the ISRs.
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		MouseReport->Wheel = encoder_delta;
 		encoder_delta = 0;
 	}
 
-	// Set the size of the report that we are sending.
 	*ReportSize = sizeof(USB_ScrollReport_Data_t);
-
-	// Return true if the wheel moved, which forces the report to be sent.
-	// Otherwise, LUFA will see that the report is the same as the previous one
-	// and will not send it.
 	return (MouseReport->Wheel != 0);
 }
 
 /**
  * \brief HID class driver callback function for the processing of HID reports from the host.
- *
- * This function is not used in this application, as we do not receive any
- * reports from the host.
  */
 void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
                                           const uint8_t ReportID,
@@ -264,5 +257,13 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
                                           const void* ReportData,
                                           const uint16_t ReportSize)
 {
-	// Unused in this application.
+	// Check if the host is setting a FEATURE report
+	if (ReportType == HID_REPORT_ITEM_Feature)
+	{
+		// Report ID 2 is for the Resolution Multiplier
+		if (ReportID == 2)
+		{
+			ResolutionMultiplier = ((uint8_t*)ReportData)[0];
+		}
+	}
 }
