@@ -35,9 +35,11 @@ include $(DMBS_PATH)/avrdude.mk
 # Include LUFA GCC modules
 include $(LUFA_PATH)/Build/LUFA/lufa-gcc.mk
 
+# Our custom flash target.
+# Allows overriding the serial port via a PORT variable, e.g.:
+#   make flash PORT=/dev/cu.usbmodem1234
 #
-# Our custom flash target from the original Makefile.
-#
+PORT ?= $$(ls -1t /dev/ttyACM* | head -n 1)
 .PHONY: flash
 flash: all
-	avrdude -p m32u4 -c avr109 -P $$(ls -1t /dev/ttyACM* | head -n 1) -b 57600 -U flash:w:$(TARGET).hex:i
+	avrdude -p m32u4 -c avr109 -P $(PORT) -b 57600 -U flash:w:$(TARGET).hex:i
