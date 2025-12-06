@@ -32,33 +32,64 @@
  */
 const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
 {
-    HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
-    HID_RI_USAGE(8, 0x02), /* Mouse */
-    HID_RI_COLLECTION(8, 0x01), /* Application */
-    HID_RI_COLLECTION(8, 0x02), /* Logical Collection */
-    /* Feature Report (ID 2) - Resolution Multiplier */
-    HID_RI_REPORT_ID(8, 2),
-    HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
-    HID_RI_USAGE(8, 0x48), /* Usage: Resolution Multiplier */
-    /* Logical/Physical range for Windows & firmware compatibility */
-    HID_RI_LOGICAL_MINIMUM(8, 0),
-    HID_RI_LOGICAL_MAXIMUM(8, 1),
-    HID_RI_PHYSICAL_MINIMUM(8, 1),
-    HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER),
-    HID_RI_REPORT_COUNT(8, 1),
-    HID_RI_REPORT_SIZE(8, 8),
-    HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+    HID_RI_USAGE_PAGE(8, 0x01),        /* Generic Desktop */
+    HID_RI_USAGE(8, 0x02),             /* Mouse */
+    HID_RI_COLLECTION(8, 0x01),        /* Application */
+        
+        /* Pointer Collection */
+        HID_RI_USAGE(8, 0x01),         /* Pointer */
+        HID_RI_COLLECTION(8, 0x00),    /* Physical */
+            
+            /* Input Report (ID 1) */
+            HID_RI_REPORT_ID(8, 1),
 
-    /* Input Report (ID 1) - Vertical Wheel */
-    HID_RI_REPORT_ID(8, 1),
-    HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
-    HID_RI_USAGE(8, 0x38), /*   Wheel */
-    HID_RI_LOGICAL_MINIMUM(8, -127),
-    HID_RI_LOGICAL_MAXIMUM(8, 127),
-    HID_RI_REPORT_SIZE(8, 8),
-    HID_RI_REPORT_COUNT(8, 1),
-    HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
-    HID_RI_END_COLLECTION(0),
+            /* Buttons (3 buttons) */
+            HID_RI_USAGE_PAGE(8, 0x09),      /* Button */
+            HID_RI_USAGE_MINIMUM(8, 0x01),
+            HID_RI_USAGE_MAXIMUM(8, 0x03),
+            HID_RI_LOGICAL_MINIMUM(8, 0),
+            HID_RI_LOGICAL_MAXIMUM(8, 1),
+            HID_RI_REPORT_COUNT(8, 3),
+            HID_RI_REPORT_SIZE(8, 1),
+            HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE),
+
+            /* Padding (5 bits) to round up to 1 byte */
+            HID_RI_REPORT_COUNT(8, 1),
+            HID_RI_REPORT_SIZE(8, 5),
+            HID_RI_INPUT(8, HID_IOF_CONSTANT),
+
+            /* X and Y Axis */
+            HID_RI_USAGE_PAGE(8, 0x01),      /* Generic Desktop */
+            HID_RI_USAGE(8, 0x30),           /* X */
+            HID_RI_USAGE(8, 0x31),           /* Y */
+            HID_RI_LOGICAL_MINIMUM(8, -127),
+            HID_RI_LOGICAL_MAXIMUM(8, 127),
+            HID_RI_REPORT_SIZE(8, 8),
+            HID_RI_REPORT_COUNT(8, 2),
+            HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
+
+            /* Vertical Wheel */
+            HID_RI_USAGE(8, 0x38),           /* Wheel */
+            HID_RI_LOGICAL_MINIMUM(8, -127),
+            HID_RI_LOGICAL_MAXIMUM(8, 127),
+            HID_RI_REPORT_SIZE(8, 8),
+            HID_RI_REPORT_COUNT(8, 1),
+            HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
+
+            /* Feature Report (ID 2) - Resolution Multiplier */
+            HID_RI_REPORT_ID(8, 2),
+            HID_RI_USAGE_PAGE(8, 0x01),      /* Generic Desktop */
+            HID_RI_USAGE(8, 0x48),           /* Usage: Resolution Multiplier */
+            /* Logical/Physical range for Windows & firmware compatibility */
+            HID_RI_LOGICAL_MINIMUM(8, 0),
+            HID_RI_LOGICAL_MAXIMUM(8, 1),
+            HID_RI_PHYSICAL_MINIMUM(8, 1),
+            HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER),
+            HID_RI_REPORT_COUNT(8, 1),
+            HID_RI_REPORT_SIZE(8, 8),
+            HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+
+        HID_RI_END_COLLECTION(0),
     HID_RI_END_COLLECTION(0)
 };
 
@@ -85,7 +116,7 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
     // The Atmel vendor ID is used here, with a custom product ID.
     // For a commercial product, you should obtain your own VID and PID.
     .VendorID = 0x03EB,
-    .ProductID = 0x2042,
+    .ProductID = 0x2044,
     .ReleaseNumber = VERSION_BCD(0, 0, 1),
 
     .ManufacturerStrIndex = STRING_ID_Manufacturer,
@@ -132,10 +163,9 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
         .TotalEndpoints = 1,
 
         .Class = HID_CSCP_HIDClass,
-        // This is a non-bootable HID device, as it does not conform to the
-        // standard mouse or keyboard boot protocols.
-        .SubClass = HID_CSCP_NonBootSubclass,
-        .Protocol = HID_CSCP_NonBootProtocol,
+        // The device is now a Boot Protocol Mouse, which is more compatible with Windows/BIOS.
+        .SubClass = HID_CSCP_BootSubclass,
+        .Protocol = HID_CSCP_MouseBootProtocol,
 
         .InterfaceStrIndex = NO_DESCRIPTOR
     },

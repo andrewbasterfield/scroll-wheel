@@ -20,23 +20,26 @@
 #define MOUSE_EPADDR              (ENDPOINT_DIR_IN | 1)
 
 /* Type Defines: */
-/**
- * \brief Custom HID report structure for the scroll wheel.
- *
- * This structure defines the layout of the HID report that will be sent to the host.
- * It contains a single signed 8-bit integer for the scroll wheel movement.
- */
-typedef struct {
-	int8_t Wheel; /**< Current delta wheel movement. */
-}
-		ATTR_PACKED USB_ScrollReport_Data_t;
+        /**
+         * \brief Custom HID report structure for the scroll wheel.
+         *
+         * This structure defines the layout of the HID report that will be sent to the host.
+         * It now matches a standard mouse: Buttons, X, Y, Wheel.
+         */
+        typedef struct
+        {
+            uint8_t Button; /**< Button mask (Bits 0-2). */
+            int8_t  X;      /**< X axis movement. */
+            int8_t  Y;      /**< Y axis movement. */
+            int8_t  Wheel;  /**< Current delta wheel movement. */
+        } ATTR_PACKED USB_ScrollReport_Data_t;
 
-/**
- * \brief Size in bytes of the Mouse HID reporting IN endpoint.
- *
- * This is set to the size of our custom scroll report.
- */
-#define MOUSE_EPSIZE              8
+		/**
+		 * \brief Size in bytes of the Mouse HID reporting IN endpoint.
+		 *
+		 * This is set to the size of our custom scroll report (4 bytes).
+		 */
+		#define MOUSE_EPSIZE              8
 
 /**
  * \brief Type define for the device configuration descriptor structure.
