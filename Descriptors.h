@@ -19,6 +19,8 @@
  */
 #define MOUSE_EPADDR              (ENDPOINT_DIR_IN | 1)
 
+//#define MACOS 1
+
 /* Type Defines: */
         /**
          * \brief Custom HID report structure for the scroll wheel.
@@ -28,9 +30,11 @@
          */
         typedef struct
         {
+#ifndef MACOS
             uint8_t Button; /**< Button mask (Bits 0-2). */
             int8_t  X;      /**< X axis movement. */
             int8_t  Y;      /**< Y axis movement. */
+#endif
             int8_t  Wheel;  /**< Current delta wheel movement. */
         } ATTR_PACKED USB_ScrollReport_Data_t;
 

@@ -226,9 +226,11 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
 	*ReportID = 1;
 	USB_ScrollReport_Data_t* MouseReport = (USB_ScrollReport_Data_t*)ReportData;
 	*MouseReport = (USB_ScrollReport_Data_t){
+#ifndef MACOS
 		.Button = 0,
 		.X      = 0,
 		.Y      = 0,
+#endif
 		.Wheel  = 0
 	};
 

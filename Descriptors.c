@@ -35,7 +35,32 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
     HID_RI_USAGE_PAGE(8, 0x01),        /* Generic Desktop */
     HID_RI_USAGE(8, 0x02),             /* Mouse */
     HID_RI_COLLECTION(8, 0x01),        /* Application */
-        
+#ifdef MACOS
+        HID_RI_COLLECTION(8, 0x02), /* Logical Collection */
+            /* Feature Report (ID 2) - Resolution Multiplier */
+            HID_RI_REPORT_ID(8, 2),
+            HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
+            HID_RI_USAGE(8, 0x48), /* Usage: Resolution Multiplier */
+            /* Logical/Physical range for Windows & firmware compatibility */
+            HID_RI_LOGICAL_MINIMUM(8, 0),
+            HID_RI_LOGICAL_MAXIMUM(8, 1),
+            HID_RI_PHYSICAL_MINIMUM(8, 1),
+            HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER),
+            HID_RI_REPORT_COUNT(8, 1),
+            HID_RI_REPORT_SIZE(8, 8),
+            HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+
+            /* Input Report (ID 1) - Vertical Wheel */
+            HID_RI_REPORT_ID(8, 1),
+            HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
+            HID_RI_USAGE(8, 0x38), /*   Wheel */
+            HID_RI_LOGICAL_MINIMUM(8, -127),
+            HID_RI_LOGICAL_MAXIMUM(8, 127),
+            HID_RI_REPORT_SIZE(8, 8),
+            HID_RI_REPORT_COUNT(8, 1),
+            HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
+        HID_RI_END_COLLECTION(0), /* Close Logical Collection */
+#else
         /* Pointer Collection */
         HID_RI_USAGE(8, 0x01),         /* Pointer */
         HID_RI_COLLECTION(8, 0x00),    /* Physical */
@@ -95,8 +120,8 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
                 HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
 
             HID_RI_END_COLLECTION(0), /* End Logical */
-
         HID_RI_END_COLLECTION(0), /* End Physical */
+#endif
     HID_RI_END_COLLECTION(0)
 };
 
@@ -170,10 +195,16 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
         .TotalEndpoints = 1,
 
         .Class = HID_CSCP_HIDClass,
+#ifdef MACOS
+        // This is a non-bootable HID device, as it does not conform to the
+        // standard mouse or keyboard boot protocols.
+        .SubClass = HID_CSCP_NonBootSubclass,
+        .Protocol = HID_CSCP_NonBootProtocol,
+#else
         // The device is now a Boot Protocol Mouse, which is more compatible with Windows/BIOS.
         .SubClass = HID_CSCP_BootSubclass,
         .Protocol = HID_CSCP_MouseBootProtocol,
-
+#endif
         .InterfaceStrIndex = NO_DESCRIPTOR
     },
 
