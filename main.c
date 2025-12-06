@@ -203,16 +203,19 @@ void EVENT_USB_Device_StartOfFrame(void) {
 /**
  * \brief HID class driver callback function for the creation of HID reports to the host.
  */
-bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *const HIDInterfaceInfo,
-                                         uint8_t *const ReportID,
+bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
+                                         uint8_t* const ReportID,
                                          const uint8_t ReportType,
-                                         void *ReportData,
-                                         uint16_t *const ReportSize) {
+                                         void* ReportData,
+                                         uint16_t* const ReportSize)
+{
 	// Check if the host is requesting a FEATURE report
-	if (ReportType == HID_REPORT_ITEM_Feature) {
+	if (ReportType == HID_REPORT_ITEM_Feature)
+	{
 		// Report ID 2 is for the Resolution Multiplier
-		if (*ReportID == 2) {
-			uint8_t *FeatureReport = (uint8_t *) ReportData;
+		if (*ReportID == 2)
+		{
+			uint8_t* FeatureReport = (uint8_t*)ReportData;
 			*FeatureReport = ResolutionMultiplier;
 			*ReportSize = sizeof(ResolutionMultiplier);
 			return true;
@@ -221,10 +224,18 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *const HIDIn
 
 	// Otherwise, create an INPUT report for the scroll wheel
 	*ReportID = 1;
-	USB_ScrollReport_Data_t *MouseReport = (USB_ScrollReport_Data_t *) ReportData;
-	*MouseReport = (USB_ScrollReport_Data_t){};
+	USB_ScrollReport_Data_t* MouseReport = (USB_ScrollReport_Data_t*)ReportData;
+	*MouseReport = (USB_ScrollReport_Data_t){
+#ifndef MACOS
+		.Button = 0,
+		.X      = 0,
+		.Y      = 0,
+#endif
+		.Wheel  = 0
+	};
 
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
 		MouseReport->Wheel = encoder_delta;
 		encoder_delta = 0;
 	}
@@ -236,16 +247,19 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t *const HIDIn
 /**
  * \brief HID class driver callback function for the processing of HID reports from the host.
  */
-void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t *const HIDInterfaceInfo,
+void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
                                           const uint8_t ReportID,
                                           const uint8_t ReportType,
-                                          const void *ReportData,
-                                          const uint16_t ReportSize) {
+                                          const void* ReportData,
+                                          const uint16_t ReportSize)
+{
 	// Check if the host is setting a FEATURE report
-	if (ReportType == HID_REPORT_ITEM_Feature) {
+	if (ReportType == HID_REPORT_ITEM_Feature)
+	{
 		// Report ID 2 is for the Resolution Multiplier
-		if (ReportID == 2) {
-			ResolutionMultiplier = ((uint8_t *) ReportData)[0];
+		if (ReportID == 2)
+		{
+			ResolutionMultiplier = ((uint8_t*)ReportData)[0];
 		}
 	}
 }
