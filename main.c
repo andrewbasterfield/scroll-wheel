@@ -12,9 +12,13 @@
 #include <avr/power.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
+#include <util/delay.h>
 #include <LUFA/Drivers/USB/USB.h>
 
 // --- Global variables ---
+
+/** Platform mode: true = macOS (wheel-only), false = Windows/Linux (Boot Mouse). */
+bool mac_mode = false;
 
 /**
  * \brief Volatile variable to accumulate encoder steps.
@@ -76,6 +80,14 @@ int main(void) {
 	// The ATmega32U4 runs at 16MHz, but the bootloader may have set a
 	// prescaler. We disable it to run at full speed.
 	clock_prescale_set(clock_div_1);
+
+	// --- Platform Switch ---
+	// Read the switch pin before USB_Init() so the correct descriptors are
+	// served during enumeration. Low = macOS, high = Windows/Linux.
+	PLATFORM_SWITCH_DDR  &= ~(1 << PLATFORM_SWITCH_BIT); // input
+	PLATFORM_SWITCH_PORT |=  (1 << PLATFORM_SWITCH_BIT);  // pull-up
+	_delay_ms(1); // let pull-up charge before reading (needed on cold boot)
+	mac_mode = !(PLATFORM_SWITCH_PIN & (1 << PLATFORM_SWITCH_BIT));
 
 	// --- Encoder Initialization ---
 	// The encoder pins are configured as inputs with internal pull-up resistors.
@@ -224,24 +236,28 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
 
 	// Otherwise, create an INPUT report for the scroll wheel
 	*ReportID = 1;
-	USB_ScrollReport_Data_t* MouseReport = (USB_ScrollReport_Data_t*)ReportData;
-	*MouseReport = (USB_ScrollReport_Data_t){
-#ifndef MACOS
-		.Button = 0,
-		.X      = 0,
-		.Y      = 0,
-#endif
-		.Wheel  = 0
-	};
 
+	int8_t delta;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		MouseReport->Wheel = encoder_delta;
+		delta = encoder_delta;
 		encoder_delta = 0;
 	}
 
-	*ReportSize = sizeof(USB_ScrollReport_Data_t);
-	return (MouseReport->Wheel != 0);
+	if (mac_mode) {
+		USB_ScrollReport_Mac_t* Report = (USB_ScrollReport_Mac_t*)ReportData;
+		Report->Wheel = delta;
+		*ReportSize = sizeof(USB_ScrollReport_Mac_t);
+	} else {
+		USB_ScrollReport_Data_t* Report = (USB_ScrollReport_Data_t*)ReportData;
+		Report->Button = 0;
+		Report->X      = 0;
+		Report->Y      = 0;
+		Report->Wheel  = delta;
+		*ReportSize = sizeof(USB_ScrollReport_Data_t);
+	}
+
+	return (delta != 0);
 }
 
 /**

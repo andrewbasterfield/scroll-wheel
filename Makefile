@@ -11,11 +11,6 @@ OBJDIR       = build
 # Compiler flags
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 
-# Add MACOS define if requested (e.g. make MACOS=1)
-ifdef MACOS
-   CC_FLAGS += -DMACOS
-endif
-
 # Create the build directory if it doesn't exist
 $(shell mkdir -p $(dir $(TARGET)))
 

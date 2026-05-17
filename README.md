@@ -6,13 +6,13 @@ This project provides the firmware for a custom USB scroll wheel based on an Ard
 
 *   **High-Resolution Scrolling**: Reports fine-grained scroll events, allowing for smooth, pixel-level scrolling in supported applications.
 *   **Cross-Platform**: Designed to work on Windows, macOS, and Linux.
-*   **Simple Hardware**: Works with a standard CNC MGP (Manual Pulse Generator, or jog wheel).
+*   **Simple Hardware**: Works with a standard CNC MPG (Manual Pulse Generator, or jog wheel).
 *   **LUFA-based**: Built upon the LUFA framework.
 
 ## Hardware Requirements
 
 *   An ATmega32U4-based microcontroller board (e.g., Arduino Pro Micro).
-*   A standard 5V 2-bit quadrature rotary encoder. If the encode supports differential outputs, the inverted outputs can be ignored.
+*   A standard 5V 2-bit quadrature rotary encoder. If the encoder supports differential outputs, the inverted outputs can be ignored.
 
 ### Pinout
 
@@ -25,6 +25,48 @@ The encoder should be connected to the microcontroller as follows:
 | Common      | `GND`   |
 
 Internal pull-up resistors are enabled on the data pins, so external resistors are not required.
+
+### Platform Mode Switch
+
+A switch or jumper selects between macOS and Windows/Linux mode at boot:
+
+| Switch (PD7) | Mode |
+| ------------ | ---- |
+| Open (default) | Windows / Linux (Boot Protocol Mouse) |
+| Closed to GND  | macOS (non-boot HID, wheel-only report) |
+
+The switch is read once at power-on before USB enumeration. Changing it while running has no effect until the next reset or power cycle.
+
+Linux supports the wheel-only (macOS) mode, but follows Windows precedent for scroll resolution behaviour, so the Windows/Linux mode is recommended for Linux users.
+
+## Configuring Scroll Resolution
+
+The scroll granularity is defined by platform-specific macros in `Descriptors.c`. These values are declared in the HID report descriptors as the Physical Maximum of the Resolution Multiplier feature report.
+
+To change the scroll resolution:
+1. Open `Descriptors.c`.
+2. Locate the following lines:
+   ```c
+   #define SCROLL_RESOLUTION_MULTIPLIER_MAC 8
+   #define SCROLL_RESOLUTION_MULTIPLIER_WIN 8
+   ```
+3. Change the value for your target platform.
+4. Rebuild and flash the firmware.
+
+### OS-Specific Behavior
+
+The relationship between the multiplier and scroll "feel" varies by operating system.
+
+| Platform | Macro | Default | Effect of Higher Value |
+|---|---|---|---|
+| **macOS** | `SCROLL_RESOLUTION_MULTIPLIER_MAC` | `8` | Coarser scrolling |
+| **Windows/Linux** | `SCROLL_RESOLUTION_MULTIPLIER_WIN` | `8` | Finer scrolling |
+
+**macOS Details:**
+Counter-intuitively, **lower** values result in **finer** scrolling. macOS reports its effective scroll resolution via `HIDScrollResolution` in the IO registry as a 16.16 fixed-point number. You can verify this with:
+```bash
+ioreg -r -l -w 0 -c IOHIDDevice | grep -A 30 "MPG Scroll Wheel" | grep Resolution
+```
 
 ## Building the Firmware
 
@@ -52,20 +94,10 @@ To build this firmware, you will need a complete AVR development toolchain, incl
 
 3.  **Compile the code:**
     Run the `make` command from the root of the project directory.
-
-    *   **For Windows & Linux:**
-        ```bash
-        make
-        ```
-        Builds a Boot Protocol Mouse with high-resolution scrolling. Works on Windows and Linux. Does not give high-res scrolling on macOS.
-
-    *   **For macOS:**
-        ```bash
-        make MACOS=1
-        ```
-        Required for high-resolution scrolling on macOS. Builds a non-boot HID device with a wheel-only report. Not compatible with Windows.
-
-    The output file will be located at `build/scroll-wheel.hex`.
+    ```bash
+    make
+    ```
+    The output file will be located at `build/scroll-wheel.hex`. A single firmware image supports both platforms; the mode is selected by the platform switch at boot.
 
 ## Flashing the Firmware
 
@@ -104,10 +136,3 @@ avrdude -p atmega32u4 -c avr109 -P <YOUR_SERIAL_PORT> -U flash:w:build/scroll-wh
 Replace `<YOUR_SERIAL_PORT>` with your device's actual serial port (e.g. `/dev/ttyACM0`, `COM3`).
 
 ---
-
-## Known Issues
-
-- **Dual-Boot Limitations:** A single firmware image cannot support both macOS and Windows. Windows requires Boot Protocol Mouse compatibility; macOS requires a non-boot HID descriptor to get high-resolution scrolling. The two are incompatible.
-    - Windows/Linux: use `make`.
-    - macOS: use `make MACOS=1`.
-    - Linux users can use either build.

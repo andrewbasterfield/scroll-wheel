@@ -8,16 +8,19 @@
 #include "Descriptors.h"
 
 /**
- * \brief Defines the scaling factor for high-resolution scrolling.
+ * \brief Defines the scaling factors for high-resolution scrolling.
  *
- * This value is used in the HID Report Descriptor to define the resolution
- * of the scroll wheel. A higher value results in slower, finer scrolling.
- * The value is used in a formula by the host OS:
- * (Scroll Value) = (Reported Value) * 120 / SCROLL_RESOLUTION_MULTIPLIER
+ * These values are used in the HID Report Descriptors to define the resolution
+ * of the scroll wheel for each platform.
  *
- * So, a value of 4 here means each encoder tick is 1/4th of a standard scroll detent.
+ * Formula: (Scroll Value) = (Reported Value) * 120 / Multiplier
+ *
+ * Note on OS behavior:
+ * - Windows/Linux: Higher values result in finer scrolling.
+ * - macOS: Lower values result in finer scrolling.
  */
-#define SCROLL_RESOLUTION_MULTIPLIER 8
+#define SCROLL_RESOLUTION_MULTIPLIER_MAC 8
+#define SCROLL_RESOLUTION_MULTIPLIER_WIN 12
 
 /**
  * \brief HID class report descriptor.
@@ -30,22 +33,21 @@
  * This descriptor defines a simple HID mouse with a single relative axis for the scroll wheel.
  * It does not include X/Y movement or buttons, to keep the device as simple as possible.
  */
-const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
+/** \brief HID report descriptor for macOS mode (non-boot, wheel only). */
+const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Mac[] =
 {
     HID_RI_USAGE_PAGE(8, 0x01),        /* Generic Desktop */
     HID_RI_USAGE(8, 0x02),             /* Mouse */
     HID_RI_COLLECTION(8, 0x01),        /* Application */
-#ifdef MACOS
         HID_RI_COLLECTION(8, 0x02), /* Logical Collection */
             /* Feature Report (ID 2) - Resolution Multiplier */
             HID_RI_REPORT_ID(8, 2),
             HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
             HID_RI_USAGE(8, 0x48), /* Usage: Resolution Multiplier */
-            /* Logical/Physical range for Windows & firmware compatibility */
             HID_RI_LOGICAL_MINIMUM(8, 0),
             HID_RI_LOGICAL_MAXIMUM(8, 1),
             HID_RI_PHYSICAL_MINIMUM(8, 1),
-            HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER),
+            HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER_MAC),
             HID_RI_REPORT_COUNT(8, 1),
             HID_RI_REPORT_SIZE(8, 8),
             HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
@@ -60,11 +62,19 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
             HID_RI_REPORT_COUNT(8, 1),
             HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_RELATIVE),
         HID_RI_END_COLLECTION(0), /* Close Logical Collection */
-#else
+    HID_RI_END_COLLECTION(0)
+};
+
+/** \brief HID report descriptor for Windows/Linux mode (Boot Protocol Mouse). */
+const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Win[] =
+{
+    HID_RI_USAGE_PAGE(8, 0x01),        /* Generic Desktop */
+    HID_RI_USAGE(8, 0x02),             /* Mouse */
+    HID_RI_COLLECTION(8, 0x01),        /* Application */
         /* Pointer Collection */
         HID_RI_USAGE(8, 0x01),         /* Pointer */
         HID_RI_COLLECTION(8, 0x00),    /* Physical */
-            
+
             /* Input Report (ID 1) - Buttons/X/Y part */
             HID_RI_REPORT_ID(8, 1),
 
@@ -103,7 +113,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
                 HID_RI_LOGICAL_MINIMUM(8, 0),
                 HID_RI_LOGICAL_MAXIMUM(8, 1),
                 HID_RI_PHYSICAL_MINIMUM(8, 1),
-                HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER),
+                HID_RI_PHYSICAL_MAXIMUM(8, SCROLL_RESOLUTION_MULTIPLIER_WIN),
                 HID_RI_REPORT_COUNT(8, 1),
                 HID_RI_REPORT_SIZE(8, 8),
                 HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
@@ -121,7 +131,6 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
 
             HID_RI_END_COLLECTION(0), /* End Logical */
         HID_RI_END_COLLECTION(0), /* End Physical */
-#endif
     HID_RI_END_COLLECTION(0)
 };
 
@@ -133,7 +142,12 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport[] =
  * number of device configurations. The descriptor is read out by the USB host when the enumeration
  * process begins.
  */
-const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
+// Product IDs differ per mode so the host OS doesn't serve cached descriptors
+// from the wrong mode.
+#define PRODUCT_ID_WIN 0x2044
+#define PRODUCT_ID_MAC 0x2045
+
+const USB_Descriptor_Device_t PROGMEM DeviceDescriptor_Win =
 {
     .Header = {.Size = sizeof(USB_Descriptor_Device_t), .Type = DTYPE_Device},
 
@@ -144,11 +158,30 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
 
     .Endpoint0Size = FIXED_CONTROL_ENDPOINT_SIZE,
 
-    // Vendor and Product IDs.
-    // The Atmel vendor ID is used here, with a custom product ID.
-    // For a commercial product, you should obtain your own VID and PID.
     .VendorID = 0x03EB,
-    .ProductID = 0x2044,
+    .ProductID = PRODUCT_ID_WIN,
+    .ReleaseNumber = VERSION_BCD(0, 0, 1),
+
+    .ManufacturerStrIndex = STRING_ID_Manufacturer,
+    .ProductStrIndex = STRING_ID_Product,
+    .SerialNumStrIndex = NO_DESCRIPTOR,
+
+    .NumberOfConfigurations = FIXED_NUM_CONFIGURATIONS
+};
+
+const USB_Descriptor_Device_t PROGMEM DeviceDescriptor_Mac =
+{
+    .Header = {.Size = sizeof(USB_Descriptor_Device_t), .Type = DTYPE_Device},
+
+    .USBSpecification = VERSION_BCD(1, 1, 0),
+    .Class = USB_CSCP_NoDeviceClass,
+    .SubClass = USB_CSCP_NoDeviceSubclass,
+    .Protocol = USB_CSCP_NoDeviceProtocol,
+
+    .Endpoint0Size = FIXED_CONTROL_ENDPOINT_SIZE,
+
+    .VendorID = 0x03EB,
+    .ProductID = PRODUCT_ID_MAC,
     .ReleaseNumber = VERSION_BCD(0, 0, 1),
 
     .ManufacturerStrIndex = STRING_ID_Manufacturer,
@@ -166,63 +199,97 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
  * and endpoints. The descriptor is read out by the USB host during the enumeration process when selecting
  * a configuration so that the host may correctly communicate with the USB device.
  */
-const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
+/**
+ * \brief Shared configuration descriptor fields (everything except
+ * HID_Interface subclass/protocol and HIDReportLength).
+ *
+ * Two variants are needed because the HID interface subclass/protocol and the
+ * report descriptor length differ between macOS and Windows/Linux modes.
+ */
+
+/** macOS configuration: non-boot HID, wheel-only report descriptor. */
+const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor_Mac =
 {
     .Config =
     {
         .Header = {
             .Size = sizeof(USB_Descriptor_Configuration_Header_t), .Type = DTYPE_Configuration
         },
-
         .TotalConfigurationSize = sizeof(USB_Descriptor_Configuration_t),
         .TotalInterfaces = 1,
-
         .ConfigurationNumber = 1,
         .ConfigurationStrIndex = NO_DESCRIPTOR,
-
         .ConfigAttributes = (USB_CONFIG_ATTR_RESERVED | USB_CONFIG_ATTR_SELFPOWERED),
-
         .MaxPowerConsumption = USB_CONFIG_POWER_MA(100)
     },
-
     .HID_Interface =
     {
         .Header = {.Size = sizeof(USB_Descriptor_Interface_t), .Type = DTYPE_Interface},
-
         .InterfaceNumber = INTERFACE_ID_Mouse,
         .AlternateSetting = 0x00,
-
         .TotalEndpoints = 1,
-
         .Class = HID_CSCP_HIDClass,
-#ifdef MACOS
-        // This is a non-bootable HID device, as it does not conform to the
-        // standard mouse or keyboard boot protocols.
         .SubClass = HID_CSCP_NonBootSubclass,
         .Protocol = HID_CSCP_NonBootProtocol,
-#else
-        // The device is now a Boot Protocol Mouse, which is more compatible with Windows/BIOS.
-        .SubClass = HID_CSCP_BootSubclass,
-        .Protocol = HID_CSCP_MouseBootProtocol,
-#endif
         .InterfaceStrIndex = NO_DESCRIPTOR
     },
-
     .HID_MouseHID =
     {
         .Header = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
-
         .HIDSpec = VERSION_BCD(1, 1, 1),
         .CountryCode = 0x00,
         .TotalReportDescriptors = 1,
         .HIDReportType = HID_DTYPE_Report,
-        .HIDReportLength = sizeof(MouseReport)
+        .HIDReportLength = sizeof(MouseReport_Mac)
     },
-
     .HID_ReportINEndpoint =
     {
         .Header = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
+        .EndpointAddress = MOUSE_EPADDR,
+        .Attributes = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC | ENDPOINT_USAGE_DATA),
+        .EndpointSize = MOUSE_EPSIZE,
+        .PollingIntervalMS = 0x05
+    }
+};
 
+/** Windows/Linux configuration: Boot Protocol Mouse, full report descriptor. */
+const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor_Win =
+{
+    .Config =
+    {
+        .Header = {
+            .Size = sizeof(USB_Descriptor_Configuration_Header_t), .Type = DTYPE_Configuration
+        },
+        .TotalConfigurationSize = sizeof(USB_Descriptor_Configuration_t),
+        .TotalInterfaces = 1,
+        .ConfigurationNumber = 1,
+        .ConfigurationStrIndex = NO_DESCRIPTOR,
+        .ConfigAttributes = (USB_CONFIG_ATTR_RESERVED | USB_CONFIG_ATTR_SELFPOWERED),
+        .MaxPowerConsumption = USB_CONFIG_POWER_MA(100)
+    },
+    .HID_Interface =
+    {
+        .Header = {.Size = sizeof(USB_Descriptor_Interface_t), .Type = DTYPE_Interface},
+        .InterfaceNumber = INTERFACE_ID_Mouse,
+        .AlternateSetting = 0x00,
+        .TotalEndpoints = 1,
+        .Class = HID_CSCP_HIDClass,
+        .SubClass = HID_CSCP_BootSubclass,
+        .Protocol = HID_CSCP_MouseBootProtocol,
+        .InterfaceStrIndex = NO_DESCRIPTOR
+    },
+    .HID_MouseHID =
+    {
+        .Header = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
+        .HIDSpec = VERSION_BCD(1, 1, 1),
+        .CountryCode = 0x00,
+        .TotalReportDescriptors = 1,
+        .HIDReportType = HID_DTYPE_Report,
+        .HIDReportLength = sizeof(MouseReport_Win)
+    },
+    .HID_ReportINEndpoint =
+    {
+        .Header = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
         .EndpointAddress = MOUSE_EPADDR,
         .Attributes = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC | ENDPOINT_USAGE_DATA),
         .EndpointSize = MOUSE_EPSIZE,
@@ -255,7 +322,8 @@ const USB_Descriptor_String_t PROGMEM ManufacturerString = USB_STRING_DESCRIPTOR
  * and is read out upon request by a host when the appropriate string ID is requested, listed in the Device
  * Descriptor.
  */
-const USB_Descriptor_String_t PROGMEM ProductString = USB_STRING_DESCRIPTOR(L"MPG Scroll Wheel");
+const USB_Descriptor_String_t PROGMEM ProductString_Win = USB_STRING_DESCRIPTOR(L"MPG Scroll Wheel (Boot Protocol Mouse (Windows/Linux) mode)");
+const USB_Descriptor_String_t PROGMEM ProductString_Mac = USB_STRING_DESCRIPTOR(L"MPG Scroll Wheel (Wheel-only (macOS) mode)");
 
 /**
  * \brief This function is called by the library when in device mode, and must be overridden.
@@ -275,13 +343,16 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
     const void *Address = NULL;
     uint16_t Size = NO_DESCRIPTOR;
 
+    const USB_Descriptor_Configuration_t *ConfigDesc =
+        mac_mode ? &ConfigurationDescriptor_Mac : &ConfigurationDescriptor_Win;
+
     switch (DescriptorType) {
         case DTYPE_Device:
-            Address = &DeviceDescriptor;
+            Address = mac_mode ? &DeviceDescriptor_Mac : &DeviceDescriptor_Win;
             Size = sizeof(USB_Descriptor_Device_t);
             break;
         case DTYPE_Configuration:
-            Address = &ConfigurationDescriptor;
+            Address = ConfigDesc;
             Size = sizeof(USB_Descriptor_Configuration_t);
             break;
         case DTYPE_String:
@@ -295,21 +366,29 @@ uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
                     Size = pgm_read_byte(&ManufacturerString.Header.Size);
                     break;
                 case STRING_ID_Product:
-                    Address = &ProductString;
-                    Size = pgm_read_byte(&ProductString.Header.Size);
+                {
+                    const USB_Descriptor_String_t *ps =
+                        mac_mode ? &ProductString_Mac : &ProductString_Win;
+                    Address = ps;
+                    Size = pgm_read_byte(&ps->Header.Size);
                     break;
+                }
             }
 
             break;
         case HID_DTYPE_HID:
-            Address = &ConfigurationDescriptor.HID_MouseHID;
+            Address = &ConfigDesc->HID_MouseHID;
             Size = sizeof(USB_HID_Descriptor_HID_t);
             break;
         case HID_DTYPE_Report:
-            // Ensure the requested interface index is our HID interface
             if (wIndex == INTERFACE_ID_Mouse) {
-                Address = &MouseReport;
-                Size = sizeof(MouseReport);
+                if (mac_mode) {
+                    Address = &MouseReport_Mac;
+                    Size = sizeof(MouseReport_Mac);
+                } else {
+                    Address = &MouseReport_Win;
+                    Size = sizeof(MouseReport_Win);
+                }
             }
             break;
     }
