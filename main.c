@@ -7,11 +7,10 @@
  */
 
 #include "Descriptors.h"
+#include "encoder.h"
 #include <avr/io.h>
 #include <avr/wdt.h>
 #include <avr/power.h>
-#include <avr/interrupt.h>
-#include <util/atomic.h>
 #include <util/delay.h>
 #include <LUFA/Drivers/USB/USB.h>
 
@@ -19,14 +18,6 @@
 
 /** Platform mode: true = macOS (wheel-only), false = Windows/Linux (Boot Mouse). */
 bool mac_mode = false;
-
-/**
- * \brief Volatile variable to accumulate encoder steps.
- *
- * This variable is incremented or decremented by the ISR for each step of
- * the rotary encoder. It is then read and processed in the main context.
- */
-static volatile int8_t encoder_delta = 0;
 
 /**
  * \brief Stores the current resolution multiplier value set by the host.
@@ -90,18 +81,7 @@ int main(void) {
 	mac_mode = !(PLATFORM_SWITCH_PIN & (1 << PLATFORM_SWITCH_BIT));
 
 	// --- Encoder Initialization ---
-	// The encoder pins are configured as inputs with internal pull-up resistors.
-	// This is a common setup for mechanical rotary encoders.
-	DDRD &= ~((1 << PD0) | (1 << PD1));
-	PORTD |= (1 << PD0) | (1 << PD1);
-
-	// We configure the external interrupts INT0 and INT1 to trigger on any
-	// logical change. This allows us to catch all state changes of the encoder.
-	EICRA |= (1 << ISC00); // Any logical change on INT0 generates an interrupt request.
-	EICRA |= (1 << ISC10); // Any logical change on INT1 generates an interrupt request.
-
-	// We enable the external interrupts for the encoder pins.
-	EIMSK |= (1 << INT0) | (1 << INT1);
+	Encoder_Init();
 
 	// Initialize the USB stack. This function is configured by LUFAConfig.h.
 	USB_Init();
@@ -114,65 +94,6 @@ int main(void) {
 		HID_Device_USBTask(&Mouse_HID_Interface);
 		USB_USBTask();
 	}
-}
-
-/**
- * \brief Reads the rotary encoder and updates the global encoder_delta variable.
- *
- * This function implements a robust quadrature encoder state machine. It is
- * called from the ISRs of the two encoder pins. It compares the new state
- * of the encoder with the old state to determine the direction of rotation.
- */
-void ReadEncoder(void) {
-	static uint8_t old_state = 0;
-	uint8_t new_state = 0;
-
-	// The state is encoded as a 2-bit number, where bit 0 is the state of pin A
-	// and bit 1 is the state of pin B.
-	if (bit_is_set(PIND, PD0)) new_state |= (1 << 0); // Pin A
-	if (bit_is_set(PIND, PD1)) new_state |= (1 << 1); // Pin B
-
-	// If the state has not changed, there is nothing to do.
-	if (new_state == old_state) return;
-
-	// This state machine detects valid transitions for a quadrature encoder.
-	// The sequence for clockwise rotation is 00 -> 01 -> 11 -> 10 -> 00.
-	// The sequence for counter-clockwise is the reverse.
-	// The state is encoded as (B << 1) | A.
-	switch (old_state) {
-		case 0b00:
-			if (new_state == 0b01) encoder_delta++; // CW
-			else if (new_state == 0b10) encoder_delta--; // CCW
-			break;
-		case 0b01:
-			if (new_state == 0b11) encoder_delta++; // CW
-			else if (new_state == 0b00) encoder_delta--; // CCW
-			break;
-		case 0b11:
-			if (new_state == 0b10) encoder_delta++; // CW
-			else if (new_state == 0b01) encoder_delta--; // CCW
-			break;
-		case 0b10:
-			if (new_state == 0b00) encoder_delta++; // CW
-			else if (new_state == 0b11) encoder_delta--; // CCW
-			break;
-	}
-
-	old_state = new_state;
-}
-
-/**
- * \brief Interrupt Service Routine for encoder pin A (INT0).
- */
-ISR(INT0_vect) {
-	ReadEncoder();
-}
-
-/**
- * \brief Interrupt Service Routine for encoder pin B (INT1).
- */
-ISR(INT1_vect) {
-	ReadEncoder();
 }
 
 /**
@@ -224,8 +145,7 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
 	// Check if the host is requesting a FEATURE report
 	if (ReportType == HID_REPORT_ITEM_Feature)
 	{
-		// Report ID 2 is for the Resolution Multiplier
-		if (*ReportID == 2)
+		if (*ReportID == REPORT_ID_FEATURE)
 		{
 			uint8_t* FeatureReport = (uint8_t*)ReportData;
 			*FeatureReport = ResolutionMultiplier;
@@ -235,14 +155,9 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
 	}
 
 	// Otherwise, create an INPUT report for the scroll wheel
-	*ReportID = 1;
+	*ReportID = REPORT_ID_SCROLL;
 
-	int8_t delta;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		delta = encoder_delta;
-		encoder_delta = 0;
-	}
+	int8_t delta = Encoder_GetDelta();
 
 	if (mac_mode) {
 		USB_ScrollReport_Mac_t* Report = (USB_ScrollReport_Mac_t*)ReportData;
@@ -272,8 +187,7 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
 	// Check if the host is setting a FEATURE report
 	if (ReportType == HID_REPORT_ITEM_Feature)
 	{
-		// Report ID 2 is for the Resolution Multiplier
-		if (ReportID == 2)
+		if (ReportID == REPORT_ID_FEATURE)
 		{
 			ResolutionMultiplier = ((uint8_t*)ReportData)[0];
 		}

@@ -41,7 +41,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Mac[] =
     HID_RI_COLLECTION(8, 0x01),        /* Application */
         HID_RI_COLLECTION(8, 0x02), /* Logical Collection */
             /* Feature Report (ID 2) - Resolution Multiplier */
-            HID_RI_REPORT_ID(8, 2),
+            HID_RI_REPORT_ID(8, REPORT_ID_FEATURE),
             HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
             HID_RI_USAGE(8, 0x48), /* Usage: Resolution Multiplier */
             HID_RI_LOGICAL_MINIMUM(8, 0),
@@ -53,7 +53,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Mac[] =
             HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
 
             /* Input Report (ID 1) - Vertical Wheel */
-            HID_RI_REPORT_ID(8, 1),
+            HID_RI_REPORT_ID(8, REPORT_ID_SCROLL),
             HID_RI_USAGE_PAGE(8, 0x01), /* Generic Desktop */
             HID_RI_USAGE(8, 0x38), /*   Wheel */
             HID_RI_LOGICAL_MINIMUM(8, -127),
@@ -76,7 +76,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Win[] =
         HID_RI_COLLECTION(8, 0x00),    /* Physical */
 
             /* Input Report (ID 1) - Buttons/X/Y part */
-            HID_RI_REPORT_ID(8, 1),
+            HID_RI_REPORT_ID(8, REPORT_ID_SCROLL),
 
             /* Buttons (3 buttons) */
             HID_RI_USAGE_PAGE(8, 0x09),      /* Button */
@@ -107,7 +107,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Win[] =
             HID_RI_COLLECTION(8, 0x02),    /* Logical */
 
                 /* Feature Report (ID 2) - Resolution Multiplier */
-                HID_RI_REPORT_ID(8, 2),
+                HID_RI_REPORT_ID(8, REPORT_ID_FEATURE),
                 HID_RI_USAGE_PAGE(8, 0x01),      /* Generic Desktop */
                 HID_RI_USAGE(8, 0x48),           /* Usage: Resolution Multiplier */
                 HID_RI_LOGICAL_MINIMUM(8, 0),
@@ -119,7 +119,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM MouseReport_Win[] =
                 HID_RI_FEATURE(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
 
                 /* Vertical Wheel (Input Report ID 1 continuation) */
-                HID_RI_REPORT_ID(8, 1),
+                HID_RI_REPORT_ID(8, REPORT_ID_SCROLL),
                 HID_RI_USAGE(8, 0x38),           /* Wheel */
                 HID_RI_LOGICAL_MINIMUM(8, -127),
                 HID_RI_LOGICAL_MAXIMUM(8, 127),
@@ -158,7 +158,7 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor_Win =
 
     .Endpoint0Size = FIXED_CONTROL_ENDPOINT_SIZE,
 
-    .VendorID = 0x03EB,
+    .VendorID = USB_VID,
     .ProductID = PRODUCT_ID_WIN,
     .ReleaseNumber = VERSION_BCD(0, 0, 1),
 
@@ -180,7 +180,7 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor_Mac =
 
     .Endpoint0Size = FIXED_CONTROL_ENDPOINT_SIZE,
 
-    .VendorID = 0x03EB,
+    .VendorID = USB_VID,
     .ProductID = PRODUCT_ID_MAC,
     .ReleaseNumber = VERSION_BCD(0, 0, 1),
 

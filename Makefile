@@ -21,7 +21,7 @@ LUFA_PATH    = ./lufa/LUFA
 include $(LUFA_PATH)/Build/LUFA/lufa-sources.mk
 
 # Source files
-SRC          = main.c Descriptors.c $(LUFA_SRC_USB) $(filter %HIDClassDevice.c, $(LUFA_SRC_USBCLASS_DEVICE))
+SRC          = main.c encoder.c Descriptors.c $(LUFA_SRC_USB) $(filter %HIDClassDevice.c, $(LUFA_SRC_USBCLASS_DEVICE))
 
 # Default target
 all:
