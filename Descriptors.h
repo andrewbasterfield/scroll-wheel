@@ -12,6 +12,15 @@
 #include <avr/pgmspace.h>
 
 /* Macros: */
+/** HID Report ID for the scroll/mouse input report. */
+#define REPORT_ID_SCROLL          1
+
+/** HID Report ID for the resolution multiplier feature report. */
+#define REPORT_ID_FEATURE         2
+
+/** USB Vendor ID (Atmel/Microchip demo VID). */
+#define USB_VID                   0x03EB
+
 /**
  * \brief Endpoint address of the Mouse HID reporting IN endpoint.
  *
@@ -51,12 +60,10 @@ typedef struct
     int8_t  Wheel;  /**< Current delta wheel movement. */
 } ATTR_PACKED USB_ScrollReport_Mac_t;
 
-		/**
-		 * \brief Size in bytes of the Mouse HID reporting IN endpoint.
-		 *
-		 * This is set to the size of our custom scroll report (4 bytes).
-		 */
-		#define MOUSE_EPSIZE              8
+/**
+ * \brief Size in bytes of the Mouse HID reporting IN endpoint.
+ */
+#define MOUSE_EPSIZE              8
 
 /**
  * \brief Type define for the device configuration descriptor structure.

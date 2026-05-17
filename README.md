@@ -58,9 +58,9 @@ To change the scroll resolution:
 The relationship between the multiplier and scroll "feel" varies by operating system.
 
 | Platform | Macro | Default | Effect of Higher Value |
-|---|---|---|---|
-| **macOS** | `SCROLL_RESOLUTION_MULTIPLIER_MAC` | `8` | Coarser scrolling |
-| **Windows/Linux** | `SCROLL_RESOLUTION_MULTIPLIER_WIN` | `8` | Finer scrolling |
+|---|---|---------|---|
+| **macOS** | `SCROLL_RESOLUTION_MULTIPLIER_MAC` | `8`     | Coarser scrolling |
+| **Windows/Linux** | `SCROLL_RESOLUTION_MULTIPLIER_WIN` | `12`    | Finer scrolling |
 
 **macOS Details:**
 Counter-intuitively, **lower** values result in **finer** scrolling. macOS reports its effective scroll resolution via `HIDScrollResolution` in the IO registry as a 16.16 fixed-point number. You can verify this with:
