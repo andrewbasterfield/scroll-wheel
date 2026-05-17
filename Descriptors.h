@@ -19,24 +19,37 @@
  */
 #define MOUSE_EPADDR              (ENDPOINT_DIR_IN | 1)
 
-//#define MACOS 1
+/**
+ * \brief Platform mode switch pin.
+ *
+ * Connect a switch between this pin and GND.
+ * Open (pull-up high) = Windows/Linux mode.
+ * Closed (pulled low) = macOS mode.
+ * Read once at boot before USB enumeration.
+ */
+#define PLATFORM_SWITCH_DDR   DDRD
+#define PLATFORM_SWITCH_PORT  PORTD
+#define PLATFORM_SWITCH_PIN   PIND
+#define PLATFORM_SWITCH_BIT   PD7
+
+/** Runtime platform mode flag, set before USB_Init(). */
+extern bool mac_mode;
 
 /* Type Defines: */
-        /**
-         * \brief Custom HID report structure for the scroll wheel.
-         *
-         * This structure defines the layout of the HID report that will be sent to the host.
-         * It now matches a standard mouse: Buttons, X, Y, Wheel.
-         */
-        typedef struct
-        {
-#ifndef MACOS
-            uint8_t Button; /**< Button mask (Bits 0-2). */
-            int8_t  X;      /**< X axis movement. */
-            int8_t  Y;      /**< Y axis movement. */
-#endif
-            int8_t  Wheel;  /**< Current delta wheel movement. */
-        } ATTR_PACKED USB_ScrollReport_Data_t;
+/** \brief HID report for Windows/Linux mode (Boot Protocol Mouse, 4 bytes). */
+typedef struct
+{
+    uint8_t Button; /**< Button mask (Bits 0-2). */
+    int8_t  X;      /**< X axis movement. */
+    int8_t  Y;      /**< Y axis movement. */
+    int8_t  Wheel;  /**< Current delta wheel movement. */
+} ATTR_PACKED USB_ScrollReport_Data_t;
+
+/** \brief HID report for macOS mode (wheel only, 1 byte). */
+typedef struct
+{
+    int8_t  Wheel;  /**< Current delta wheel movement. */
+} ATTR_PACKED USB_ScrollReport_Mac_t;
 
 		/**
 		 * \brief Size in bytes of the Mouse HID reporting IN endpoint.
