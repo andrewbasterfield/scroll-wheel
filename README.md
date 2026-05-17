@@ -53,17 +53,17 @@ To build this firmware, you will need a complete AVR development toolchain, incl
 3.  **Compile the code:**
     Run the `make` command from the root of the project directory.
 
-    *   **For Windows & Linux (Standard):**
+    *   **For Windows & Linux:**
         ```bash
         make
         ```
-        This builds a standard Boot Protocol Mouse version. It works on Windows and Linux, but smooth/high-res scrolling features are disabled.
+        Builds a Boot Protocol Mouse with high-resolution scrolling. Works on Windows and Linux. Does not give high-res scrolling on macOS.
 
-    *   **For macOS & Linux (High-Resolution):**
+    *   **For macOS:**
         ```bash
         make MACOS=1
         ```
-        This builds a version with High-Resolution Scrolling enabled. **Recommended for Linux and macOS users.** Note: This version is NOT compatible with Windows.
+        Required for high-resolution scrolling on macOS. Builds a non-boot HID device with a wheel-only report. Not compatible with Windows.
 
     The output file will be located at `build/scroll-wheel.hex`.
 
@@ -107,7 +107,7 @@ Replace `<YOUR_SERIAL_PORT>` with your device's actual serial port (e.g. `/dev/t
 
 ## Known Issues
 
-- **Dual-Boot Limitations:** Currently, a single firmware image cannot support both High-Resolution scrolling on macOS whilst working on Windows due to conflicting driver requirements.
-    - Windows users must use the standard build (`make`).
-    - macOS users must use the high-res build (`make MACOS=1`).
-    - Linux users can use either.
+- **Dual-Boot Limitations:** A single firmware image cannot support both macOS and Windows. Windows requires Boot Protocol Mouse compatibility; macOS requires a non-boot HID descriptor to get high-resolution scrolling. The two are incompatible.
+    - Windows/Linux: use `make`.
+    - macOS: use `make MACOS=1`.
+    - Linux users can use either build.
